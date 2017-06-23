@@ -1,0 +1,105 @@
+Imports System.IO.Ports
+Imports System.Data
+Imports System.Data.OleDb
+Imports System.IO
+
+Public Class Form3
+
+    Private WithEvents comPort As New IO.Ports.SerialPort
+    Private dataIn As String
+    Private readBuffer As String = String.Empty
+    Private Bytenumber As Integer
+    Private ByteToRead As Integer
+    Private PortEnable As Integer = False
+    Private TimeCount As Integer = 0
+
+    Private byteEnd(2) As Char
+    Private comOpen As Boolean
+
+    Dim swriter As StreamWriter
+
+    Private Sub Form3_FormClosed(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
+        Disconnect()
+    End Sub
+    Private Sub Form3_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        Timer1.Enabled = True
+        System.Windows.Forms.Control.CheckForIllegalCrossThreadCalls = False
+        AddHandler comPort.DataReceived, AddressOf comPort_DataReceived
+
+    End Sub
+    Public Sub Disconnect()
+
+        If comPort IsNot Nothing AndAlso comPort.IsOpen Then
+            comPort.Close()
+        End If
+    End Sub
+    Private Sub comPort_DataReceived(ByVal sender As Object, ByVal e As SerialDataReceivedEventArgs)
+        If comOpen Then
+            Try
+
+                Dim bytes As Integer = comPort.BytesToRead
+                'create a byte array to hold the awaiting data
+                Dim comBuffer As Byte() = New Byte(bytes - 1) {}
+                'read the data and store it
+
+                comPort.Read(comBuffer, 0, bytes)
+            
+            Catch ex As Exception
+                MsgBox("Read " & ex.Message)
+            End Try
+        End If
+    End Sub
+    Private Sub Button1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Button1.Click
+        Me.Close()
+        Me.Dispose()
+    End Sub
+    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
+        Label6.Text = TimeOfDay
+
+        TimeCount = TimeCount + 1
+        If TimeCount = 60 Then
+            TimeCount = 0
+
+            Dim stream As StreamReader = New StreamReader("keb_bill.txt")
+            Dim streamLine As String = stream.ReadLine()
+
+            If (streamLine <> TextBox1.Text And PortEnable = True) Then
+                TextBox1.Text = streamLine
+                comPort.Write("<")
+                comPort.Write(TextBox1.Text)
+                comPort.Write(">")
+                comPort.Write(">")
+            End If
+            stream.Close()
+        End If
+    End Sub
+
+ 
+    Private Sub Button4_Click(sender As Object, e As EventArgs) Handles Button4.Click
+        With comPort
+            .PortName = TextBox3.Text
+            .BaudRate = 9600
+            .Parity = IO.Ports.Parity.None
+            .DataBits = 8
+            .StopBits = IO.Ports.StopBits.One
+            .Handshake = IO.Ports.Handshake.None
+            .RtsEnable = False
+            .ReceivedBytesThreshold = 1           'threshold: one byte in buffer > event is fired 
+
+        End With
+
+        Try
+            comPort.Open()
+            comOpen = comPort.IsOpen
+        Catch ex As Exception
+            comOpen = False
+            Label20.Text = "NOT CONNECTED"
+            MsgBox("Error Open: " & ex.Message)
+        End Try
+        If comOpen = True Then
+            Label20.Text = "CONNECTED"
+            PortEnable = True
+        End If
+    End Sub
+
+End Class
